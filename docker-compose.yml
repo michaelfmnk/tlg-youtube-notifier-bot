@@ -1,0 +1,13 @@
+version: '3'
+services:
+  app:
+    build: .
+    environment:
+      - CONNECTION_STRING=mongodb://mongo:27017
+      - TELEGRAM_TOKEN=
+      - YT_API_KEY=
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017"

@@ -1,5 +1,6 @@
 import requests
 import logging
+import datetime
 
 
 class YouTubeClient:
@@ -44,7 +45,7 @@ class YouTubeClient:
                     video = {
                         "title": item["snippet"]["title"],
                         "video_id": item["id"]["videoId"],
-                        "date": item["snippet"]["publishedAt"],
+                        "published_at": datetime.datetime.strptime(item["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%SZ"),
                     }
                     videos.append(video)
         except IOError:

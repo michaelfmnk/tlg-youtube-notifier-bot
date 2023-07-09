@@ -1,3 +1,4 @@
+import asyncio
 import itertools
 import logging
 
@@ -25,32 +26,30 @@ class Notifier:
 
     async def check_and_notify(self, chat: dict):
         logging.debug("Checking chat " + str(chat["_id"]))
+        new_videos = []
         for channel in chat["channels"]:
             channel_id = channel["id"]
             try:
-                new_videos = await self.get_new_videos_in_channel_for_chat(channel, chat)
-                for video in new_videos:
-                    await self.notify(chat, video)
+                new_videos_in_channel = await self.get_new_videos_in_channel_for_chat(channel, chat)
+                new_videos.extend(new_videos_in_channel)
                 if new_videos:
-                    self.storage.set_latest_video_sent(chat["_id"], channel_id, new_videos[-1]["video_id"])
+                    self.storage.set_latest_video_sent(chat["_id"], channel_id, new_videos_in_channel[-1]["video_id"])
             except Exception as e:
                 logging.error("Error while checking channel {} for chat {}: {}"
-                              .format(channel_id, chat["_id"], e))
+                              .format(channel_id, chat["_id"], e), e)
+
+        new_videos = sorted(new_videos, key=lambda v: v["published_at"])
+        for video in new_videos:
+            await self.notify(chat, video)
+            await asyncio.sleep(0.1)
 
     async def get_new_videos_in_channel_for_chat(self, channel, chat):
         channel_id = channel["id"]
         latest_video_sent = channel["latest_video_sent"]
         latest_videos = self.youtube_client.get_videos_by_channel_id(channel_id)
-        latest_videos = list(
-            reversed(
-                list(
-                    itertools.takewhile(
-                        lambda v: v["video_id"] != latest_video_sent,
-                        latest_videos
-                    )
-                )
-            )
-        )
+        latest_videos = list(itertools.takewhile(lambda v: v["video_id"] != latest_video_sent, latest_videos))
+        latest_videos.sort(key=lambda v: v["published_at"])
+
         logging.debug("Found {} new videos for channel {} in chat {}"
                       .format(len(latest_videos), channel_id, chat["_id"]))
         return latest_videos
